@@ -3,12 +3,12 @@
 
 mod macros;
 mod util;
+mod equivalent;
 
 use std::hash::Hash;
 use std::hash::BuildHasher;
 use std::hash::Hasher;
 use std::collections::hash_map::RandomState;
-use std::borrow::Borrow;
 use std::ops::RangeFull;
 
 use std::cmp::{max, Ordering};
@@ -17,6 +17,7 @@ use std::mem::{replace};
 use std::marker::PhantomData;
 
 use util::{second, ptrdistance, enumerate};
+pub use equivalent::Equivalent;
 
 fn hash_elem_using<B: BuildHasher, K: ?Sized + Hash>(build: &B, k: &K) -> HashValue {
     let mut h = build.build_hasher();
@@ -808,8 +809,7 @@ impl<K, V, S> OrderMap<K, V, S>
     ///
     /// Computes in **O(1)** time (average).
     pub fn contains_key<Q: ?Sized>(&self, key: &Q) -> bool
-        where K: Borrow<Q>,
-              Q: Eq + Hash,
+        where Q: Hash + Equivalent<K>,
     {
         self.find(key).is_some()
     }
@@ -819,15 +819,13 @@ impl<K, V, S> OrderMap<K, V, S>
     ///
     /// Computes in **O(1)** time (average).
     pub fn get<Q: ?Sized>(&self, key: &Q) -> Option<&V>
-        where K: Borrow<Q>,
-              Q: Eq + Hash,
+        where Q: Hash + Equivalent<K>,
     {
         self.get_pair(key).map(second)
     }
 
     pub fn get_pair<Q: ?Sized>(&self, key: &Q) -> Option<(&K, &V)>
-        where K: Borrow<Q>,
-              Q: Eq + Hash,
+        where Q: Hash + Equivalent<K>,
     {
         if let Some((_, found)) = self.find(key) {
             let entry = &self.entries[found];
@@ -839,8 +837,7 @@ impl<K, V, S> OrderMap<K, V, S>
 
     /// Return item index, key and value
     pub fn get_pair_index<Q: ?Sized>(&self, key: &Q) -> Option<(usize, &K, &V)>
-        where K: Borrow<Q>,
-              Q: Eq + Hash,
+        where Q: Hash + Equivalent<K>,
     {
         if let Some((_, found)) = self.find(key) {
             let entry = &self.entries[found];
@@ -851,16 +848,14 @@ impl<K, V, S> OrderMap<K, V, S>
     }
 
     pub fn get_mut<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V>
-        where K: Borrow<Q>,
-              Q: Eq + Hash,
+        where Q: Hash + Equivalent<K>,
     {
         self.get_pair_mut(key).map(second)
     }
 
     pub fn get_pair_mut<Q: ?Sized>(&mut self, key: &Q)
         -> Option<(&mut K, &mut V)>
-        where K: Borrow<Q>,
-              Q: Eq + Hash,
+        where Q: Hash + Equivalent<K>,
     {
         if let Some((_, found)) = self.find(key) {
             let entry = &mut self.entries[found];
@@ -872,8 +867,7 @@ impl<K, V, S> OrderMap<K, V, S>
 
     pub fn get_pair_index_mut<Q: ?Sized>(&mut self, key: &Q)
         -> Option<(usize, &mut K, &mut V)>
-        where K: Borrow<Q>,
-              Q: Eq + Hash,
+        where Q: Hash + Equivalent<K>,
     {
         if let Some((_, found)) = self.find(key) {
             let entry = &mut self.entries[found];
@@ -885,12 +879,11 @@ impl<K, V, S> OrderMap<K, V, S>
 
     /// Return probe (indices) and position (entries)
     fn find<Q: ?Sized>(&self, key: &Q) -> Option<(usize, usize)>
-        where K: Borrow<Q>,
-              Q: Eq + Hash,
+        where Q: Hash + Equivalent<K>,
     {
         if self.len() == 0 { return None; }
         let h = hash_elem_using(&self.hash_builder, key);
-        self.find_using(h, move |entry| { *entry.key.borrow() == *key })
+        self.find_using(h, move |entry| { Q::equivalent(key, &entry.key) })
     }
 
     /// Remove the key-value pair equivalent to `key` and return
@@ -904,8 +897,7 @@ impl<K, V, S> OrderMap<K, V, S>
     ///
     /// Computes in **O(1)** time (average).
     pub fn swap_remove<Q: ?Sized>(&mut self, key: &Q) -> Option<V>
-        where K: Borrow<Q>,
-              Q: Eq + Hash,
+        where Q: Hash + Equivalent<K>,
     {
         self.swap_remove_pair(key).map(second)
     }
@@ -914,8 +906,7 @@ impl<K, V, S> OrderMap<K, V, S>
     ///
     /// Computes in **O(1)** time (average).
     pub fn remove<Q: ?Sized>(&mut self, key: &Q) -> Option<V>
-        where K: Borrow<Q>,
-              Q: Eq + Hash,
+        where Q: Hash + Equivalent<K>,
     {
         self.swap_remove(key)
     }
@@ -928,8 +919,7 @@ impl<K, V, S> OrderMap<K, V, S>
     ///
     /// Return `None` if `key` is not in map.
     pub fn swap_remove_pair<Q: ?Sized>(&mut self, key: &Q) -> Option<(K, V)>
-        where K: Borrow<Q>,
-              Q: Eq + Hash,
+        where Q: Hash + Equivalent<K>,
     {
         let (probe, found) = match self.find(key) {
             None => return None,
@@ -1454,9 +1444,8 @@ impl<K, V, S> IntoIterator for OrderMap<K, V, S>
 use std::ops::{Index, IndexMut};
 
 impl<'a, K, V, Q: ?Sized, S> Index<&'a Q> for OrderMap<K, V, S>
-    where K: Eq + Hash,
-          K: Borrow<Q>,
-          Q: Eq + Hash,
+    where Q: Hash + Equivalent<K>,
+          K: Hash + Eq,
           S: BuildHasher,
 {
     type Output = V;
@@ -1476,9 +1465,8 @@ impl<'a, K, V, Q: ?Sized, S> Index<&'a Q> for OrderMap<K, V, S>
 ///
 /// You can **not** insert new pairs with index syntax, use `.insert()`.
 impl<'a, K, V, Q: ?Sized, S> IndexMut<&'a Q> for OrderMap<K, V, S>
-    where K: Eq + Hash,
-          K: Borrow<Q>,
-          Q: Eq + Hash,
+    where Q: Hash + Equivalent<K>,
+          K: Hash + Eq,
           S: BuildHasher,
 {
     /// ***Panics*** if `key` is not present in the map.
