@@ -19,7 +19,7 @@ impl<A, B, C, D> PartialEq<(A, B)> for Pair<C, D>
     }
 }
 
-impl<A, B, X: ?Sized> Equivalent<X> for Pair<A, B>
+impl<A, B, X> Equivalent<X> for Pair<A, B>
     where Pair<A, B>: PartialEq<X>,
           A: Hash + Eq,
           B: Hash + Eq,
