@@ -7,10 +7,11 @@ matrix:
     - rust: nightly
     - rust: nightly
       env:
-       - FEATURES='test_low_transition_point'
+       - FEATURES='test_low_transition_point test'
 branches:
   only:
     - master
+    - rebel
 script:
   - |
       cargo build --verbose --features "$FEATURES" &&

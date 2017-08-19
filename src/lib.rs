@@ -1,9 +1,14 @@
 
 #![doc(html_root_url = "https://docs.rs/ordermap/0.2/")]
 
+#[cfg(feature="serde")]
+extern crate serde;
+
 mod macros;
 mod util;
 mod equivalent;
+#[cfg(feature="serde")]
+mod serialization;
 
 use std::hash::Hash;
 use std::hash::BuildHasher;

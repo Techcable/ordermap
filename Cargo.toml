@@ -6,11 +6,14 @@ documentation = "https://docs.rs/ordermap/"
 repository = "https://github.com/bluss/ordermap"
 license = "Apache-2.0/MIT"
 description = "A hash table with consistent order and fast iteration."
+# This is a private rebellion
+publish = false
 
 [lib]
 bench = false
 
 [dependencies]
+serde = { version = "^1.0.11", optional = true }
 
 [dev-dependencies]
 itertools = "0.5.1"
@@ -18,6 +21,7 @@ rand = "0.3"
 quickcheck = { version = "0.4", default-features = false }
 fnv = "1.0"
 lazy_static = "0.2"
+serde_test = "^1.0.11"
 
 [features]
 # for testing only, of course
